@@ -1,4 +1,6 @@
 upcoming
+    Fix request entity too large & socket io upgrade Nat 13/08/2026 18:38
+    Bug fix: Temp revert merge: [Implement persistent unit loss]. Updated savespack compatiblity Willy030125* 29/03/2026 12:26
     Fix frozen base path running from exe Natlies* 24/02/2026 20:23
     CI/CD pipeline (#42) Natlies* 28/01/2026 23:57
     Fix database path Nat 14/01/2026 18:50

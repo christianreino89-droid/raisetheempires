@@ -65,7 +65,7 @@ except ImportError as error:
 
 # import logging.config
 
-version = "0.08a.2026_02_24"
+version = "0.08a.2026_08_13"
 release_date = 'Friday, 24 February 2026'
 
 COMPRESS_MIMETYPES = ['text/html', 'text/css', 'text/xml', 'application/json', 'application/javascript',
@@ -93,6 +93,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # Flask-SQLAlchemy has its 
 app.config['SESSION_SQLALCHEMY'] = db
 app.config['SESSION_COOKIE_HTTPONLY'] = False
 #app.config['SESSION_SERIALIZATION_FORMAT '] = 'json' # flask-session uses msgspec by default now which makes it undepickleable
+app.config['MAX_FORM_MEMORY_SIZE'] = 5 * 1024 * 1024  # 5 MB
 app.permanent_session_lifetime = timedelta(weeks=520)
 
 MIN_ADMIN_ID = -1
