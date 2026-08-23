@@ -12,6 +12,12 @@ from quest_engine import lookup_quest, get_tasks, simple_list, get_seed_w, get_s
 from save_engine import get_saves, store_session
 
 
+class StaleBattleReference(Exception):
+    """Raised when a request references a fleet/battle the server no longer has
+    (e.g. a queued client request replayed after the battle/session was reset)."""
+    pass
+
+
 def battle_complete_response(params):
     friendlies, friendly_strengths, baddies, baddie_strengths, active_consumables = init_battle(params)
     meta = {"newPVE": 0}
@@ -150,7 +156,7 @@ def process_consumable_end_turn(active_consumables, baddie_strengths, friendly_s
         (consumable, target, tries) = consumable_tuple
 
         if not player_turn: # enemy dot after enemy turn
-            if target == ("enemy", None):
+            if target[0] == "enemy" and target[1] is None:
                 # apply to all baddies
                 for selected_baddie in range(len(baddie_strengths)):
                     apply_dot_damage(consumable, selected_baddie, baddie_strengths, "Baddie")
@@ -158,7 +164,7 @@ def process_consumable_end_turn(active_consumables, baddie_strengths, friendly_s
                 # apply to target[1]
                 apply_dot_damage(consumable, target[1], baddie_strengths, "Baddie")
         else: # player dot after player turn
-            if target == ("ally", None):
+            if target[0] == "ally" and target[1] is None:
                 for selected_friendly in range(len(friendly_strengths)):
                     apply_dot_damage(consumable, selected_friendly, friendly_strengths, "Friendly")
             elif target[0] == "ally":  #if  target[0] == "ally":
@@ -361,11 +367,17 @@ def init_battle(params):
             if params.get("name") == "AI":
                 if params['map'] is not None:
                     future_enemy_fleet = get_new_enemy_fleet_name()
+                    friendlies_fleet_name = get_previous_fleet_name(get_previous_fleet_name(get_previous_fleet_name(future_enemy_fleet)))
+                    baddies_fleet_name = get_previous_fleet_name(get_previous_fleet_name(future_enemy_fleet))
+                    if friendlies_fleet_name not in session['fleets'] or baddies_fleet_name not in session['fleets']:
+                        raise StaleBattleReference(
+                            f"AI consumable cast: computed fleet names {friendlies_fleet_name!r}/"
+                            f"{baddies_fleet_name!r} not in session (fleet-numbering mismatch, "
+                            f"e.g. battle fleet {params.get('fleet')!r} uses a different sequence)")
                     friendlies = [lookup_item_by_code(friendly.split(',')[0]) for friendly in
-                                  session['fleets'][get_previous_fleet_name(get_previous_fleet_name(get_previous_fleet_name(future_enemy_fleet)))]]
+                                  session['fleets'][friendlies_fleet_name]]
                     baddies = [lookup_item_by_code(baddy[1:]) for sub_fleet in
-                               simple_list(
-                                   session['fleets'][get_previous_fleet_name(get_previous_fleet_name(future_enemy_fleet))])
+                               simple_list(session['fleets'][baddies_fleet_name])
                                for baddy, count in sub_fleet.items()
                                for i in range(int(count))]
                 else:
@@ -409,12 +421,16 @@ def init_battle(params):
                 for q in open_quests:
                     quest = lookup_quest(q)
                     tasks = get_tasks(quest)
-                    task = [t for t in tasks if t["_action"] == "fight" and t.get("_fleetname") == params['fleet']]
-                    if task:
-                        task = task[0]
+                    matching_tasks = [t for t in tasks if t["_action"] == "fight" and t.get("_fleetname") == params['fleet']]
+                    if matching_tasks:
+                        task = matching_tasks[0]
                         friendlies = [lookup_item_by_code(friendly.split(',')[0]) for friendly in
                                       session['fleets'][get_friendly_by_ally_fleet(params['name'])]]
                         break
+
+                if task is None:
+                    raise StaleBattleReference(
+                        f"No open quest fight-task matches fleet {params.get('fleet')!r}")
 
                 enemy_fleet = lookup_item_by_code(task["_item"])
                 baddies = [lookup_item_by_code(baddie_slot["-item"]) for baddie_slot in simple_list(enemy_fleet["baddie"])]
@@ -422,6 +438,9 @@ def init_battle(params):
                     friendlies = [lookup_item_by_code(friendly[1:]) for friendly, count in task["fleet"].items() for i in
                                   range(int(count))]
         elif params['target'].startswith('fleet'):
+            if params['target'] not in session['fleets'] or params['fleet'] not in session['fleets']:
+                raise StaleBattleReference(
+                    f"Fleet {params.get('target')!r} or {params.get('fleet')!r} no longer in session")
             baddies = [lookup_item_by_code(baddy[1:]) for sub_fleet in simple_list(session['fleets'][params['target']])
                        for baddy, count in sub_fleet.items()
                        for i in range(int(count))]
@@ -1089,15 +1108,24 @@ def get_adjacent_factor(unit_1, unit_2, count):
         return [[0,4,3,0,0],[4,0,3,2,0],[4,3,0,2,1],[0,4,3,0,2],[0,0,4,3,0]][unit_1][unit_2]
 
 
+def consumable_target_matches(consumable_target, target):
+    # consumable_target/target are (side, index) pairs, index None meaning "all".
+    # active_consumables round-trips through the Flask session via msgpack, which has
+    # no tuple type -- tuples silently become lists across a session save/reload, so a
+    # plain `consumable_target == target` tuple-identity check can spuriously fail for
+    # data that survived a request boundary. Compare elements instead.
+    return consumable_target[0] == target[0] and (consumable_target[1] == target[1] or consumable_target[1] is None)
+
+
 def is_stunned(target, active_consumables):
     for consumable, consumable_target, tries in active_consumables:
-        if (consumable_target == target or consumable_target == (target[0], None)) and consumable["consumable"].get("-disable") == "stun":
+        if consumable_target_matches(consumable_target, target) and consumable["consumable"].get("-disable") == "stun":
             return True
     return False
 
 def is_affected_by_consumable(target, used_consumable, active_consumables):
     for consumable, consumable_target, tries in active_consumables:
-        if (consumable_target == target or consumable_target == (target[0], None)) and consumable == used_consumable:
+        if consumable_target_matches(consumable_target, target) and consumable == used_consumable:
             return True
     return False
 
@@ -1120,7 +1148,7 @@ def get_consumable_evasion(target, active_consumables):
 def get_consumable_int(target, active_consumables, field):
     damage = 0
     for consumable, consumable_target, tries in active_consumables:
-        if consumable_target == target or consumable_target == (target[0], None):
+        if consumable_target_matches(consumable_target, target):
             damage += int(consumable["consumable"].get(field, "0"))
     return damage
 
@@ -1364,13 +1392,13 @@ def defenseshield_upgrade_activate(friendlies, active_consumables):
 
 def consume_shield(hit_target, active_consumables):
     active_consumables[:] = [(consumable, target, tries) for consumable, target, tries
-                             in active_consumables if consumable.get("consumable",{}).get("-givesAbility") != "shield" or target != hit_target]
+                             in active_consumables if consumable.get("consumable",{}).get("-givesAbility") != "shield" or not consumable_target_matches(target, hit_target)]
 
 
 
 def is_shielded(target, active_consumables):
     for consumable, consumable_target, tries in active_consumables:
-        if (consumable_target == target or consumable_target == (target[0], None)) and consumable.get("consumable",{}).get("-givesAbility") == "shield":
+        if consumable_target_matches(consumable_target, target) and consumable.get("consumable",{}).get("-givesAbility") == "shield":
             return True
     return False
 

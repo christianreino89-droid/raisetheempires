@@ -44,7 +44,7 @@ import mod_engine
 from battle_engine import battle_complete_response, spawn_fleet, next_campaign_response, assign_consumable_response, \
     get_active_island_by_map, set_active_island_by_map, format_player_fleet, \
     cancel_unstarted_invasions, register_fleetname_fleet, get_last_fleet_name, is_shielded, decode_unit_count_list, \
-    encode_unit_strings, get_survival_player_fleet, encode_unit_string, BattleContext
+    encode_unit_strings, get_survival_player_fleet, encode_unit_string, BattleContext, StaleBattleReference
 from game_settings import get_zid, initial_island, random_image, randomReward, get_sessions_id, unlock_expansion, \
     lookup_wave, lookup_crew_template
 import threading #, webbrowaser
@@ -788,7 +788,11 @@ def post_gateway():
         elif reqq.functionName == 'PVPService.loadChallenge':
             resps.append(load_challenge_response(reqq.params[0]))
         elif reqq.functionName == 'WorldService.resolveBattle':
-            resps.append(battle_complete_response(reqq.params[0]))
+            try:
+                resps.append(battle_complete_response(reqq.params[0]))
+            except StaleBattleReference as error:
+                print('Ignoring stale resolveBattle request:', error)
+                resps.append(dummy_response())
         elif reqq.functionName == 'WorldService.genericString':
             resps.append(generic_string_response(reqq.params[0]))
         elif reqq.functionName == 'UserService.streakBonus':
@@ -816,7 +820,11 @@ def post_gateway():
         elif reqq.functionName == 'WorldService.addFleet':
             resps.append(add_fleet_response(reqq.params[0]))
         elif reqq.functionName == 'WorldService.assignConsumable':
-            resps.append(assign_consumable_response(reqq.params[0]))
+            try:
+                resps.append(assign_consumable_response(reqq.params[0]))
+            except StaleBattleReference as error:
+                print('Ignoring stale assignConsumable request:', error)
+                resps.append(dummy_response())
         elif reqq.functionName == 'UserService.publishUserAction':
             resps.append(dummy_response())
         elif reqq.functionName == 'UserService.sendUserNotification':
