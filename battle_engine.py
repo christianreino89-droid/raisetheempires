@@ -513,7 +513,7 @@ def get_next_fleet_name(name):
     print("Using next fleet as baddies for ally targeted consumables")
     return name[:5] + str(int(name[5:name.index('_')]) + 1) + name[name.index('_'):]
 
-
+# Select the latest non-empty player fleet for Survival Mode.
 def get_last_fleet_name():
     suffix = "_" + str(get_zid())
     candidates = []
