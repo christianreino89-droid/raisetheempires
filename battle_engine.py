@@ -515,12 +515,26 @@ def get_next_fleet_name(name):
 
 
 def get_last_fleet_name():
-    i = 0
-    fleet_name = "fleet1_" + str(get_zid())
-    while fleet_name in session["fleets"] or "fleet" + str(i+1) + "_" + str(get_zid()) in session["fleets"]:
-        i += 1
-        fleet_name = "fleet" + str(i) + "_" + str(get_zid())
-    return "fleet" + str(i-1) + "_" + str(get_zid())
+    suffix = "_" + str(get_zid())
+    candidates = []
+
+    for name, units in session.get("fleets", {}).items():
+        if not name.startswith("fleet") or not name.endswith(suffix):
+            continue
+        if not isinstance(units, list) or not units:
+            continue
+
+        try:
+            fleet_number = int(name[5:name.index("_")])
+        except (ValueError, IndexError):
+            continue
+
+        candidates.append((fleet_number, name))
+
+    if not candidates:
+        raise KeyError("No player fleet found in session")
+
+    return max(candidates)[1]
 
 
 def get_friendly_by_ally_fleet(name):
