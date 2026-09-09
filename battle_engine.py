@@ -1186,7 +1186,6 @@ def ai_best_attack(player_units, player_units_strengths, baddies, baddies_streng
     best_pairings = [(baddie_index, grade, player_index) for baddie_index, grade, player_index in best_units if grade == max_grade and grade >= 0]
     if best_pairings:
         best_pairing = best_pairings[round(roll_random_between(0, len(best_pairings) - 1)) if len(best_pairings) > 1 else 0]  #optional roll
-        best_pairing = (best_pairings[0][0],) + best_pairing[1:]  # bugged pairings
         print("best AI pairing method 1 (baddie, grade, friendly)", repr(best_pairing))
     else:
         best_pairing = None, 0, None
