@@ -368,17 +368,24 @@ def init_battle(params):
                 if params['map'] is not None:
                     battle_fleet_names = session.get("battle_fleet_names")
 
-                    if not battle_fleet_names:
-                        raise StaleBattleReference(
-                            "AI turn has no registered campaign battle fleets"
+                    if battle_fleet_names:
+                        friendlies_fleet_name, baddies_fleet_name = battle_fleet_names
+                    else:
+                        future_enemy_fleet = get_new_enemy_fleet_name()
+                        friendlies_fleet_name = get_previous_fleet_name(
+                            get_previous_fleet_name(
+                                get_previous_fleet_name(future_enemy_fleet)
+                            )
                         )
-
-                    friendlies_fleet_name, baddies_fleet_name = battle_fleet_names
+                        baddies_fleet_name = get_previous_fleet_name(
+                            get_previous_fleet_name(future_enemy_fleet)
+                        )
 
                     if friendlies_fleet_name not in session['fleets'] or baddies_fleet_name not in session['fleets']:
                         raise StaleBattleReference(
-                            f"AI consumable cast: computed fleet names {friendlies_fleet_name!r}/"
-                            f"{baddies_fleet_name!r} not in session")
+                            f"AI battle fleets {friendlies_fleet_name!r}/"
+                            f"{baddies_fleet_name!r} are no longer in session"
+                        )
 
                     friendlies = [lookup_item_by_code(friendly.split(',')[0]) for friendly in
                                   session['fleets'][friendlies_fleet_name]]
