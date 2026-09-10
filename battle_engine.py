@@ -366,9 +366,14 @@ def init_battle(params):
             fleet_or_name = params['fleet'] if params['fleet'] else params['name']
             if params.get("name") == "AI":
                 if params['map'] is not None:
-                    future_enemy_fleet = get_new_enemy_fleet_name()
-                    friendlies_fleet_name = get_previous_fleet_name(get_previous_fleet_name(get_previous_fleet_name(future_enemy_fleet)))
-                    baddies_fleet_name = get_previous_fleet_name(get_previous_fleet_name(future_enemy_fleet))
+    battle_fleet_names = session.get("battle_fleet_names")
+
+    if not battle_fleet_names:
+        raise StaleBattleReference(
+            "AI turn has no registered campaign battle fleets"
+        )
+        
+    friendlies_fleet_name, baddies_fleet_name = battle_fleet_names
                     if friendlies_fleet_name not in session['fleets'] or baddies_fleet_name not in session['fleets']:
                         raise StaleBattleReference(
                             f"AI consumable cast: computed fleet names {friendlies_fleet_name!r}/"
@@ -438,7 +443,15 @@ def init_battle(params):
                     friendlies = [lookup_item_by_code(friendly[1:]) for friendly, count in task["fleet"].items() for i in
                                   range(int(count))]
         elif params['target'].startswith('fleet'):
-            if params['target'] not in session['fleets'] or params['fleet'] not in session['fleets']:
+    if params['target'] not in session['fleets'] or params['fleet'] not in session['fleets']:
+        raise StaleBattleReference(
+            f"Fleet {params.get('target')!r} or {params.get('fleet')!r} no longer in session"
+        )
+
+    session["battle_fleet_names"] = (
+        params["fleet"],
+        params["target"],
+    )
                 raise StaleBattleReference(
                     f"Fleet {params.get('target')!r} or {params.get('fleet')!r} no longer in session")
             baddies = [lookup_item_by_code(baddy[1:]) for sub_fleet in simple_list(session['fleets'][params['target']])
@@ -638,7 +651,7 @@ def spawn_fleet(params):
 
 def next_campaign_response(params):
     meta = {"newPVE": 0}
-
+session.pop("battle_fleet_names", None)
     # map_item = lookup_item_by_code(map["map"])
     #
     # if map["map"] not in session['campaign'] or not session['campaign'][map["map"]]:
