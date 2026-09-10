@@ -364,7 +364,7 @@ def init_battle(params):
     try:
         if 'target' not in params:
             fleet_or_name = params['fleet'] if params['fleet'] else params['name']
-                         if params.get("name") == "AI":
+            if params.get("name") == "AI":
                 if params['map'] is not None:
                     battle_fleet_names = session.get("battle_fleet_names")
 
@@ -443,7 +443,7 @@ def init_battle(params):
                 if not friendlies:
                     friendlies = [lookup_item_by_code(friendly[1:]) for friendly, count in task["fleet"].items() for i in
                                   range(int(count))]
-                        elif params['target'].startswith('fleet'):
+                elif params['target'].startswith('fleet'):
             if params['target'] not in session['fleets'] or params['fleet'] not in session['fleets']:
                 raise StaleBattleReference(
                     f"Fleet {params.get('target')!r} or {params.get('fleet')!r} no longer in session"
@@ -652,7 +652,7 @@ def spawn_fleet(params):
 
 def next_campaign_response(params):
     meta = {"newPVE": 0}
-        session.pop("battle_fleet_names", None)
+    session.pop("battle_fleet_names", None)
     # map_item = lookup_item_by_code(map["map"])
     #
     # if map["map"] not in session['campaign'] or not session['campaign'][map["map"]]:
