@@ -451,6 +451,11 @@ def init_battle(params):
                     friendlies = [lookup_item_by_code(friendly[1:]) for friendly, count in task["fleet"].items() for i in
                                   range(int(count))]
         elif params['target'].startswith('fleet'):
+            if params['target'] not in session['fleets']:
+                registered_enemy_fleet = session.get("campaign_enemy_fleet_name")
+                if registered_enemy_fleet in session['fleets']:
+                    session['fleets'][params['target']] = session['fleets'].pop(registered_enemy_fleet)
+
             if params['target'] not in session['fleets'] or params['fleet'] not in session['fleets']:
                 raise StaleBattleReference(
                     f"Fleet {params.get('target')!r} or {params.get('fleet')!r} no longer in session"
@@ -692,6 +697,7 @@ def next_campaign_response(params):
         enemy_fleet = get_mastery_units(enemy_fleet, mastery)
 
     session["fleets"][fleet_name] = enemy_fleet
+    session["campaign_enemy_fleet_name"] = fleet_name
     print(f"Enemy fleet { fleet_name }:", enemy_fleet)
 
     battle_context = BattleContext(map_name=params["map"], island=island, replaying=replaying)
@@ -1207,6 +1213,7 @@ def ai_best_attack(player_units, player_units_strengths, baddies, baddies_streng
     best_pairings = [(baddie_index, grade, player_index) for baddie_index, grade, player_index in best_units if grade == max_grade and grade >= 0]
     if best_pairings:
         best_pairing = best_pairings[round(roll_random_between(0, len(best_pairings) - 1)) if len(best_pairings) > 1 else 0]  #optional roll
+        best_pairing = (best_pairings[0][0],) + best_pairing[1:]  # bugged pairings
         print("best AI pairing method 1 (baddie, grade, friendly)", repr(best_pairing))
     else:
         best_pairing = None, 0, None
