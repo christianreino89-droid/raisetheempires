@@ -142,6 +142,7 @@ def battle_complete_response(params):
     if not player_turn:
         consume_consumables(active_consumables)
     battle_complete_response = {"errorType": 0, "userId": 1, "metadata": meta, "data": result}
+    session.modified = True
     return battle_complete_response
 
 #             "-disable": "stun",
@@ -708,7 +709,7 @@ def next_campaign_response(params):
         session["battle"] = (None, None, None, battle_context)
     else:
         session["battle"][3] = battle_context
-
+    session.modified = True
     return next_campaign_response
 
 
