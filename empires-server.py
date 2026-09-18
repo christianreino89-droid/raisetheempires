@@ -2416,6 +2416,7 @@ def add_fleet_response(param):
     session["fleets"][param['name']] = param['units']
     if "allies" in param:
         session["fleets"]["ally_" + param['name']] = param['allies']
+    session.modified = True
     print("Player fleet:", param['units'])
     return add_fleet_response
 
