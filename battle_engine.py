@@ -1320,7 +1320,20 @@ def set_active_island_by_map(map_name, island_id):
         status = campaign['active'][map_name]["status"]
         status = (status & 1048575) | (island_id << 20)
         campaign['active'][map_name]["status"] = status
+def set_active_island_by_map(map_name, island_id):
+    campaign = session['user_object']['userInfo']['world']['campaign']
 
+    if map_name not in campaign['active'].keys():
+        campaign['active'][map_name] = {
+            "status": island_id << 20,
+            "fleets": []
+        }
+    else:
+        status = campaign['active'][map_name]["status"]
+        status = (status & 1048575) | (island_id << 20)
+        campaign['active'][map_name]["status"] = status
+
+    session.modified = True
 
 #
 # def get_current_island_from_session():
